@@ -118,7 +118,7 @@ class TCCommandGenerator:
         return commands
 
 
-class TCGen(QMainWindow):
+class RelTC(QMainWindow):
     def __init__(self):
         super().__init__()
         self.initUI()
@@ -509,7 +509,7 @@ class TCGen(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
-    gui = TCGen()
+    gui = RelTC()
 
     gui.show()
     sys.exit(app.exec_())
