@@ -1,6 +1,6 @@
 import sys
 import ipaddress
-from typing import List
+from typing import List, Optional
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QComboBox, QLineEdit, QPushButton, QGroupBox,
@@ -11,72 +11,46 @@ from PyQt5.QtGui import QFont
 
 class TCCommandGenerator:
     @staticmethod
-    def is_ip_or_range(ip_range: str) -> bool:
-        if not ip_range:
-            return True
-
-        parts = ip_range.split('-')
-        if len(parts) > 2:
-            return False
-
+    def is_ip_address(ip_address: str) -> bool:
         try:
-            for part in parts:
-                ipaddress.ip_address(part.strip())
+            ipaddress.ip_address(ip_address)
             return True
         except ValueError:
             return False
 
     @staticmethod
-    def is_port_or_range(port_range: str) -> bool:
-        if not port_range:
-            return True
-
-        parts = port_range.split('-')
-        if len(parts) > 2:
-            return False
-
+    def is_port(port: str) -> bool:
         try:
-            for part in parts:
-                port = int(part.strip())
-                if port < 0 or port > 65535:
-                    return False
-            return True
+            port_val = int(port)
+            return (port_val > 0) and (port_val < 65535)
         except ValueError:
             return False
 
     @staticmethod
-    def generate_ip_match(field: str, ip_range: str) -> str:
-        if not ip_range:
+    def generate_ip_match(field: str, ip_address: Optional[str]) -> str:
+        if not ip_address:
             return ""
 
-        parts = ip_range.split('-')
-        if len(parts) == 1:
-            return f"{field} {parts[0].strip()}"
-        else:
-            return f"{field} {parts[0].strip()}-{parts[1].strip()}"
+        return f"{field} {ip_address}"
 
     @staticmethod
-    def generate_port_match(field: str, port_range: str) -> str:
-        if not port_range:
+    def generate_port_match(field: str, port: Optional[str]) -> str:
+        if not port:
             return ""
 
-        parts = port_range.split('-')
-        if len(parts) == 1:
-            return f"{field} {parts[0].strip()}"
-        else:
-            return f"{field} {parts[0].strip()}-{parts[1].strip()}"
+        return f"{field} {port}"
 
     @staticmethod
     def generate_commands(config) -> List[str]:
         commands = []
 
         commands.append(f"tc qdisc add dev {config['interface']} clsact;")
-        filter_cmd = f"tc filter add dev {config['interface']} {config['direction']} protocol ip flower"
+        filter_cmd = f"tc filter add dev {config['interface']} {config['direction']} protocol ip"
 
         if config['priority']:
             filter_cmd += f" {config['priority']}"
 
-        filter_cmd += f" ip_proto {config['protocol']}"
+        filter_cmd += f" flower ip_proto {config['protocol']}"
 
         if config['src_ip']:
             filter_cmd += f" src_ip {config['src_ip']}"
@@ -95,23 +69,23 @@ class TCCommandGenerator:
             filter_cmd += " action drop"
         elif config['patch_fields']:
             # Otherwise, add patching actions if any are selected
-            filter_cmd += " action pedit ex munge"
+            filter_cmd += " action pedit ex"
 
             # Add patching for each selected field
             for field, value in config['patch_fields'].items():
                 if value:
                     if field == 'src_ip' and config['patch_src_ip']:
-                        filter_cmd += f" ip src set {config['patch_src_ip']}"
+                        filter_cmd += f" munge ip src set {config['patch_src_ip']}"
                     elif field == 'dst_ip' and config['patch_dst_ip']:
-                        filter_cmd += f" ip dst set {config['patch_dst_ip']}"
+                        filter_cmd += f" munge ip dst set {config['patch_dst_ip']}"
                     elif field == 'src_port' and config['patch_src_port'] and config['protocol'] in ['tcp', 'udp']:
-                        filter_cmd += f" {config['protocol']} sport set {config['patch_src_port']}"
+                        filter_cmd += f" munge {config['protocol']} sport set {config['patch_src_port']}"
                     elif field == 'dst_port' and config['patch_dst_port'] and config['protocol'] in ['tcp', 'udp']:
-                        filter_cmd += f" {config['protocol']} dport set {config['patch_dst_port']}"
+                        filter_cmd += f" munge {config['protocol']} dport set {config['patch_dst_port']}"
 
         if config['continue_filtering'] and not config['drop_packet']:
             filter_cmd += " continue"
-        else:
+        elif not config['drop_packet']:
             filter_cmd += " pipe"
 
         commands.append(f'{filter_cmd};')
@@ -197,7 +171,7 @@ class RelTC(QMainWindow):
         src_ip_layout.setFormAlignment(Qt.AlignLeft)
         src_ip_layout.setLabelAlignment(Qt.AlignLeft)
         self.src_ip_input = QLineEdit()
-        self.src_ip_input.setPlaceholderText("e.g., 1.1.1.1 or 1.1.1.1-1.1.1.10")
+        self.src_ip_input.setPlaceholderText("e.g. 1.1.1.1")
         self.src_ip_input.setMaximumWidth(200)
         src_ip_layout.addRow("src ip:", self.src_ip_input)
         src_filters_layout.addLayout(src_ip_layout)
@@ -207,7 +181,7 @@ class RelTC(QMainWindow):
         src_port_layout.setFormAlignment(Qt.AlignLeft)
         src_port_layout.setLabelAlignment(Qt.AlignLeft)
         self.src_port_input = QLineEdit()
-        self.src_port_input.setPlaceholderText("e.g., 80 or 80-90")
+        self.src_port_input.setPlaceholderText("e.g. 80")
         self.src_port_input.setMaximumWidth(100)
         src_port_layout.addRow("src port:", self.src_port_input)
         src_filters_layout.addLayout(src_port_layout)
@@ -222,7 +196,7 @@ class RelTC(QMainWindow):
         dst_ip_layout.setFormAlignment(Qt.AlignLeft)
         dst_ip_layout.setLabelAlignment(Qt.AlignLeft)
         self.dst_ip_input = QLineEdit()
-        self.dst_ip_input.setPlaceholderText("e.g., 3.3.3.3 or 3.3.3.3-3.3.3.10")
+        self.dst_ip_input.setPlaceholderText("e.g. 3.3.3.3")
         self.dst_ip_input.setMaximumWidth(200)
         dst_ip_layout.addRow("dst ip:", self.dst_ip_input)
         dst_filters_layout.addLayout(dst_ip_layout)
@@ -232,7 +206,7 @@ class RelTC(QMainWindow):
         dst_port_layout.setFormAlignment(Qt.AlignLeft)
         dst_port_layout.setLabelAlignment(Qt.AlignLeft)
         self.dst_port_input = QLineEdit()
-        self.dst_port_input.setPlaceholderText("e.g., 443 or 22-25")
+        self.dst_port_input.setPlaceholderText("e.g. 443")
         self.dst_port_input.setMaximumWidth(100)
         dst_port_layout.addRow("dst port:", self.dst_port_input)
         dst_filters_layout.addLayout(dst_port_layout)
@@ -377,18 +351,18 @@ class RelTC(QMainWindow):
 
     def on_drop_toggled(self, checked):
         """Enable or disable patch fields based on drop packet selection."""
-        # If drop is checked, disable all patch fields
+
         enable_patch = not checked
+        self.continue_check.setEnabled(enable_patch)
+
         self.patch_src_ip_check.setEnabled(enable_patch)
         self.patch_dst_ip_check.setEnabled(enable_patch)
 
-        # Only enable port patches if protocol is tcp or udp
-        enable_ports = self.protocol_combo.currentText() in ["tcp", "udp"] and enable_patch
-        self.patch_src_port_check.setEnabled(enable_ports)
-        self.patch_dst_port_check.setEnabled(enable_ports)
+        self.patch_src_port_check.setEnabled(enable_patch)
+        self.patch_dst_port_check.setEnabled(enable_patch)
 
-        # If patch is disabled, uncheck all patch checkboxes
         if not enable_patch:
+            self.continue_check.setChecked(False)
             self.patch_src_ip_check.setChecked(False)
             self.patch_dst_ip_check.setChecked(False)
             self.patch_src_port_check.setChecked(False)
@@ -405,12 +379,12 @@ class RelTC(QMainWindow):
         src_ip = self.src_ip_input.text().strip()
         dst_ip = self.dst_ip_input.text().strip()
 
-        if src_ip and not TCCommandGenerator.is_ip_or_range(src_ip):
-            QMessageBox.warning(self, "Validation Error", "Invalid source IP range format.")
+        if src_ip and not TCCommandGenerator.is_ip_address(src_ip):
+            QMessageBox.warning(self, "Validation Error", "Invalid source IP address format.")
             return False
 
-        if dst_ip and not TCCommandGenerator.is_ip_or_range(dst_ip):
-            QMessageBox.warning(self, "Validation Error", "Invalid destination IP range format.")
+        if dst_ip and not TCCommandGenerator.is_ip_address(dst_ip):
+            QMessageBox.warning(self, "Validation Error", "Invalid destination IP address format.")
             return False
 
         # Validate port ranges if protocol is tcp or udp
@@ -418,11 +392,11 @@ class RelTC(QMainWindow):
             src_port = self.src_port_input.text().strip()
             dst_port = self.dst_port_input.text().strip()
 
-            if src_port and not TCCommandGenerator.is_port_or_range(src_port):
+            if src_port and not TCCommandGenerator.is_port(src_port):
                 QMessageBox.warning(self, "Validation Error", "Invalid source port range format.")
                 return False
 
-            if dst_port and not TCCommandGenerator.is_port_or_range(dst_port):
+            if dst_port and not TCCommandGenerator.is_port(dst_port):
                 QMessageBox.warning(self, "Validation Error", "Invalid destination port range format.")
                 return False
 

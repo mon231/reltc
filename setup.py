@@ -7,7 +7,7 @@ README_PATH = CURRENT_FOLDER / 'README.md'
 
 setuptools.setup(
     name = "reltc",
-    version = "0.0.1",
+    version = "1.0.0",
     author = "Ariel Tubul",
     packages = setuptools.find_packages(),
     long_description=README_PATH.read_text(),
