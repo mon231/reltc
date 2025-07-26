@@ -83,9 +83,11 @@ class TCCommandGenerator:
                     elif field == 'dst_port' and config['patch_dst_port'] and config['protocol'] in ['tcp', 'udp']:
                         filter_cmd += f" munge {config['protocol']} dport set {config['patch_dst_port']}"
 
-        if config['continue_filtering'] and not config['drop_packet']:
+        if config['drop_packet']:
+            pass
+        elif config['continue_filtering']:
             filter_cmd += " continue"
-        elif not config['drop_packet']:
+        else:
             filter_cmd += " pipe"
 
         commands.append(f'{filter_cmd};')
@@ -307,15 +309,15 @@ class RelTC(QMainWindow):
         command_group = QGroupBox("Generated Commands")
         command_layout = QVBoxLayout()
 
+        copy_button = QPushButton("Generate and Copy")
+        copy_button.clicked.connect(self.generate_and_copy)
+        command_layout.addWidget(copy_button)
+
         self.command_output = QTextEdit()
         self.command_output.setReadOnly(True)
         self.command_output.setFont(QFont("Courier New", 10))
         self.command_output.setMinimumHeight(150)
         command_layout.addWidget(self.command_output)
-
-        copy_button = QPushButton("Generate and Copy")
-        copy_button.clicked.connect(self.generate_and_copy)
-        command_layout.addWidget(copy_button)
 
         command_group.setLayout(command_layout)
         filter_layout.addWidget(command_group)
