@@ -309,6 +309,10 @@ class RelTC(QMainWindow):
         command_group = QGroupBox("Generated Commands")
         command_layout = QVBoxLayout()
 
+        swap_button = QPushButton("Swap Filter/Patch")
+        swap_button.clicked.connect(self.swap_patch_filter)
+        command_layout.addWidget(swap_button)
+
         copy_button = QPushButton("Generate and Copy")
         copy_button.clicked.connect(self.generate_and_copy)
         command_layout.addWidget(copy_button)
@@ -316,7 +320,7 @@ class RelTC(QMainWindow):
         self.command_output = QTextEdit()
         self.command_output.setReadOnly(True)
         self.command_output.setFont(QFont("Courier New", 10))
-        self.command_output.setMinimumHeight(150)
+        self.command_output.setMinimumHeight(50)
         command_layout.addWidget(self.command_output)
 
         command_group.setLayout(command_layout)
@@ -470,6 +474,54 @@ class RelTC(QMainWindow):
 
         commands = TCCommandGenerator.generate_commands(config)
         self.command_output.setText("\n".join(commands))
+
+    def swap_patch_filter(self):
+        # filter src: 1.1.1.1
+        # patch dst: 2.2.2.2
+
+        # swap
+
+        # filter src: 2.2.2.2
+        # patch dst: 1.1.1.1
+
+        original_filter_src_ip = self.src_ip_input.text().strip()
+        original_filter_src_port = self.src_port_input.text().strip()
+
+        original_filter_dst_ip = self.dst_ip_input.text().strip()
+        original_filter_dst_port = self.dst_port_input.text().strip()
+
+        original_patch_src_ip = self.patch_src_ip_input.text().strip()
+        original_patch_src_port = self.patch_src_port_input.text().strip()
+
+        original_patch_dst_ip = self.patch_dst_ip_input.text().strip()
+        original_patch_dst_port = self.patch_dst_port_input.text().strip()
+
+        self.src_ip_input.setText(original_patch_dst_ip)
+        self.src_port_input.setText(original_patch_dst_port)
+
+        self.dst_ip_input.setText(original_patch_src_ip)
+        self.dst_port_input.setText(original_patch_src_port)
+
+        self.patch_src_ip_input.setText(original_filter_dst_ip)
+        self.patch_src_port_input.setText(original_filter_dst_port)
+
+        self.patch_dst_ip_input.setText(original_filter_src_ip)
+        self.patch_dst_port_input.setText(original_filter_src_port)
+
+        self.adjust_patch_checkboxes()
+
+    def adjust_patch_checkboxes(self):
+        self.patch_src_ip_check.setChecked(self.patch_src_ip_input.text().strip() != '')
+        self.patch_src_port_check.setChecked(self.patch_src_port_input.text().strip() != '')
+
+        self.patch_dst_ip_check.setChecked(self.patch_dst_ip_input.text().strip() != '')
+        self.patch_dst_port_check.setChecked(self.patch_dst_port_input.text().strip() != '')
+
+        if self.drop_check.isChecked():
+            self.patch_src_ip_check.setChecked(False)
+            self.patch_dst_ip_check.setChecked(False)
+            self.patch_src_port_check.setChecked(False)
+            self.patch_dst_port_check.setChecked(False)
 
     def generate_and_copy(self):
         self.generate_commands()
