@@ -7,13 +7,13 @@ README_PATH = CURRENT_FOLDER / 'README.md'
 
 setuptools.setup(
     name = "reltc",
-    version = "1.1.0",
+    version = "1.1.1",
     author = "Ariel Tubul",
     packages = setuptools.find_packages(),
     long_description=README_PATH.read_text(),
     install_requires = ['PyQt5'],
     long_description_content_type='text/markdown',
     url = "https://github.com/mon231/reltc/",
-    description = "Linux TC command-genearator",
-    entry_points = {'console_scripts': ['reltc=reltc.main:main']}
+    description = "Linux TC command-generator",
+    entry_points = {'gui_scripts': ['reltc=reltc.main:main']}
 )
