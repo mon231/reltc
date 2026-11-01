@@ -40,7 +40,7 @@ jobs:
             echo "tag '$tag' is not like v1.2.3" >&2
             exit 1
           fi
-          sed -i -E "s/^( *version *= *)\".*\"/\"${tag#v}\"/" setup.py
+          sed -i -E "s/^( *version *= *)\".*\"/\1\"${tag#v}\"/" setup.py
           grep -n 'version' setup.py
       - run: python -m pip install build twine
       - run: python -m build
